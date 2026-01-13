@@ -21,6 +21,7 @@ RUN set -x \
            git \
            ipset \
            iptables \
+           libavahi-client-dev \
            libnetfilter-queue-dev \
            ninja-build \
            wget \
@@ -41,7 +42,7 @@ RUN set -x \
     \
     && cd ot-br-posix \
     && git fetch origin "${GIT_COMMIT}" \
-    && git checkout "${GIT_COMMIT}" \
+    && git checkout FETCH_HEAD \
     && git submodule update --depth 1 --init --recursive \
     \
     # Patch to disable Multicast Routing \
@@ -51,9 +52,11 @@ RUN set -x \
            -DBUILD_TESTING=OFF \
            -DCMAKE_INSTALL_PREFIX=/usr \
            -DOTBR_DBUS=OFF \
-           -DOTBR_MDNS=openthread \
+           -DOTBR_MDNS=avahi \
            -DOTBR_REST=ON \
            -DOTBR_DUA_ROUTING=ON \
+           -DOTBR_BACKBONE_ROUTER=ON \
+           -DOT_BACKBONE_ROUTER=ON \
            -DOT_POSIX_NAT64_CIDR="192.168.255.0/24" \
            -DOT_FIREWALL=ON \
     && ninja \
