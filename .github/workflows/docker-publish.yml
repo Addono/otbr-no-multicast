@@ -1,6 +1,8 @@
 name: Docker Build and Publish
 
 on:
+  schedule:
+    - cron: '0 0 * * *'
   push:
     branches: [ "main" ]
   workflow_dispatch:
@@ -10,11 +12,27 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  get-context:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Fetch latest tag from upstream
+        id: set-matrix
+        run: |
+          LATEST_TAG=$(git ls-remote --tags --sort=-v:refname https://github.com/openthread/ot-br-posix.git | grep -v '\^{}' | head -n 1 | awk '{print $2}' | sed 's|^refs/tags/||')
+          echo "Found latest tag: $LATEST_TAG"
+          echo "matrix={\"include\":[{\"version\":\"main\",\"is_latest\":false},{\"version\":\"$LATEST_TAG\",\"is_latest\":true}]}" >> $GITHUB_OUTPUT
+
   build:
+    needs: get-context
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+    strategy:
+      matrix: ${{ fromJson(needs.get-context.outputs.matrix) }}
+      fail-fast: false
 
     steps:
       - name: Checkout repository
@@ -39,7 +57,9 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest,enable=${{ matrix.is_latest }}
+            type=raw,value=${{ matrix.version }}
+            type=raw,value=${{ matrix.version }}-build.${{ github.run_number }}
             type=sha
 
       - name: Build and push Docker image
@@ -49,5 +69,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            GIT_COMMIT=${{ matrix.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
