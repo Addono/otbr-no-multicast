@@ -17,23 +17,24 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - name: Fetch latest tag from upstream
+      - name: Fetch latest tag and main sha from upstream
         id: set-matrix
         run: |
           LATEST_TAG=$(git ls-remote --tags --sort=-v:refname https://github.com/openthread/ot-br-posix.git | grep -v '\^{}' | head -n 1 | awk '{print $2}' | sed 's|^refs/tags/||')
           echo "Found latest tag: $LATEST_TAG"
-          echo "matrix={\"include\":[{\"version\":\"main\",\"is_latest\":false},{\"version\":\"$LATEST_TAG\",\"is_latest\":true}]}" >> $GITHUB_OUTPUT
+          
+          MAIN_SHA=$(git ls-remote https://github.com/openthread/ot-br-posix.git refs/heads/main | awk '{print substr($1,1,7)}')
+          echo "Found main sha: $MAIN_SHA"
+          
+          echo "matrix={\"include\":[{\"version\":\"main\",\"sha\":\"$MAIN_SHA\",\"is_latest\":false,\"dockerfile\":\"Dockerfile.main\"},{\"version\":\"$LATEST_TAG\",\"sha\":\"\",\"is_latest\":true,\"dockerfile\":\"Dockerfile.$LATEST_TAG\"}]}" >> $GITHUB_OUTPUT
 
-  build:
+  build-main:
     needs: get-context
     runs-on: ubuntu-latest
+    if: github.event_name != 'push' || contains(github.event.commits.*.added, 'Dockerfile.main') || contains(github.event.commits.*.modified, 'Dockerfile.main') || contains(github.event.commits.*.added, '.github/workflows/docker-publish.yml') || contains(github.event.commits.*.modified, '.github/workflows/docker-publish.yml')
     permissions:
       contents: read
       packages: write
-    strategy:
-      matrix: ${{ fromJson(needs.get-context.outputs.matrix) }}
-      fail-fast: false
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -51,25 +52,72 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels) for Docker
+      - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest,enable=${{ matrix.is_latest }}
-            type=raw,value=${{ matrix.version }}
-            type=raw,value=${{ matrix.version }}-build.${{ github.run_number }}
-            type=sha
+            type=raw,value=main
+            type=raw,value=main-build.${{ github.run_number }}
+            type=raw,value=main-${{ fromJson(needs.get-context.outputs.matrix).include[0].sha }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: Dockerfile.main
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            GIT_COMMIT=${{ matrix.version }}
+            GIT_COMMIT=main
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-tagged:
+    needs: get-context
+    runs-on: ubuntu-latest
+    if: github.event_name != 'push' || contains(github.event.commits.*.added, 'Dockerfile.thread-reference-20250612') || contains(github.event.commits.*.modified, 'Dockerfile.thread-reference-20250612') || contains(github.event.commits.*.added, '.github/workflows/docker-publish.yml') || contains(github.event.commits.*.modified, '.github/workflows/docker-publish.yml')
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest
+            type=raw,value=${{ fromJson(needs.get-context.outputs.matrix).include[1].version }}
+            type=raw,value=${{ fromJson(needs.get-context.outputs.matrix).include[1].version }}-build.${{ github.run_number }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.thread-reference-20250612
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            GIT_COMMIT=${{ fromJson(needs.get-context.outputs.matrix).include[1].version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
