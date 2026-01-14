@@ -60,7 +60,7 @@ jobs:
             type=raw,value=main-${{ fromJson(needs.get-context.outputs.matrix).include[0].sha }}
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile.main
@@ -106,7 +106,7 @@ jobs:
             type=raw,value=${{ fromJson(needs.get-context.outputs.matrix).include[1].version }}-build.${{ github.run_number }}
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile.thread-reference-20250612
