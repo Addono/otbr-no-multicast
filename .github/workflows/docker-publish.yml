@@ -31,7 +31,6 @@ jobs:
   build-main:
     needs: get-context
     runs-on: ubuntu-latest
-    if: github.event_name != 'push' || contains(github.event.commits.*.added, 'Dockerfile.main') || contains(github.event.commits.*.modified, 'Dockerfile.main') || contains(github.event.commits.*.added, '.github/workflows/docker-publish.yml') || contains(github.event.commits.*.modified, '.github/workflows/docker-publish.yml')
     permissions:
       contents: read
       packages: write
@@ -78,7 +77,6 @@ jobs:
   build-tagged:
     needs: get-context
     runs-on: ubuntu-latest
-    if: github.event_name != 'push' || contains(github.event.commits.*.added, 'Dockerfile.thread-reference-20250612') || contains(github.event.commits.*.modified, 'Dockerfile.thread-reference-20250612') || contains(github.event.commits.*.added, '.github/workflows/docker-publish.yml') || contains(github.event.commits.*.modified, '.github/workflows/docker-publish.yml')
     permissions:
       contents: read
       packages: write
