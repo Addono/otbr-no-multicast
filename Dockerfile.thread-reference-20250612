@@ -74,7 +74,7 @@ RUN set -x \
     \
     && cd ot-br-posix \
     && git fetch origin "${GIT_COMMIT}" \
-    && git checkout "${GIT_COMMIT}" \
+    && git checkout FETCH_HEAD \
     && git submodule update --depth 1 --init \
     \
     # Patch to disable Multicast Routing \
