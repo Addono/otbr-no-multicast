@@ -49,6 +49,7 @@ RUN set -x \
            git \
            ipset \
            iptables \
+           libnetfilter-queue-dev \
            ninja-build \
            wget \
     \
@@ -85,6 +86,7 @@ RUN set -x \
            -DCMAKE_INSTALL_PREFIX=/usr \
            -DOTBR_BORDER_ROUTING=ON \
            -DOTBR_BACKBONE_ROUTER=ON \
+           -DOTBR_DUA_ROUTING=ON \
            -DOTBR_DBUS=OFF \
            -DOTBR_MDNS=mDNSResponder \
            -DOTBR_DNSSD_DISCOVERY_PROXY=ON \
